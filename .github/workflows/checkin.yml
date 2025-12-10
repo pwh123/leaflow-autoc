@@ -2,7 +2,7 @@ name: Leaflow Auto Checkin
 
 on:
   schedule:
-    - cron: '20 0 * * *' # 每天UTC时间01:00运行（北京时间09:00）
+    - cron: '20 0 * * *' # 每天UTC时间00:20运行（北京时间08:20）
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -37,27 +37,30 @@ jobs:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         GITHUB_ACTIONS: true
       run: |
-        python leaflow_checkin.p
+        python leaflow_checkin.py  # 修正后缀为 .py
       
-        - name: Commit log file to repo
-        env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-         git config user.name "github-actions[bot]"
-         git config user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Commit log file to repo  # 修正缩进，作为独立步骤
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
-         # 如果日志文件不存在，说明是第一次运行，先创建
-         if [ ! -f click_log.txt ]; then
-          echo "初始化日志文件于 $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')" > click_log.txt
-         else
+        # 定义当前时间变量
+        CURRENT_TIME=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')
+        
+        # 如果日志文件不存在，初始化；否则更新内容
+        if [ ! -f click_log.txt ]; then
+          echo "初始化日志文件于 $CURRENT_TIME" > click_log.txt
+        else
           echo "最后一次操作执行于: $CURRENT_TIME" > click_log.txt
-         fi
-         git add click_log.txt
+        fi
+        git add click_log.txt
 
-         # 提交并推送（如果有变更）
-         if git diff --cached --quiet; then
+        # 提交并推送（如果有变更）
+        if git diff --cached --quiet; then
           echo "无变化，无需提交"
-         else
-          git commit -m "更新日志: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
+        else
+          git commit -m "更新日志: $CURRENT_TIME"
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
-         fi
+        fi
